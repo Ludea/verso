@@ -95,15 +95,6 @@ jobs:
       - name: Install Rust
         uses: dsherret/rust-toolchain-file@v1
 
-      - name: Install dependencies
-        run: |
-          brew install cmake
-          python -m pip install mako
-          curl https://gstreamer.freedesktop.org/data/pkg/osx/1.24.6/gstreamer-1.0-1.24.6-universal.pkg -o runtime.pkg
-          sudo installer -pkg runtime.pkg -target /
-          curl https://gstreamer.freedesktop.org/data/pkg/osx/1.24.6/gstreamer-1.0-devel-1.24.6-universal.pkg -o develop.pkg
-          sudo installer -pkg develop.pkg -target /
-
       - name: Run sccache-cache
         uses: Mozilla-Actions/sccache-action@v0.0.4
 
@@ -116,5 +107,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: verso_${{ env.VERSO_VERSION }}_${{ matrix.platform.arch }}_dmg
+          name: verso_${{ matrix.platform.arch }}
           path: target/release/verso_${{ matrix.platform.arch }}
