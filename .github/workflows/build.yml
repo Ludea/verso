@@ -82,7 +82,7 @@ jobs:
       matrix:
         platform:
           - { target: aarch64-apple-darwin, os: macos-latest, arch: aarch64 }
-          - { target: x86_64-apple-darwin, os: macos-13, arch: x64 }
+          - { target: x86_64-apple-darwin, os: macos-13, arch: x86_64 }
     runs-on: ${{ matrix.platform.os }}
     env:
       RUSTC_WRAPPER: sccache
@@ -107,5 +107,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: verso_${{ matrix.platform.arch }}
-          path: target/release/verso_${{ matrix.platform.arch }}
+          name: versoview_macos_${{ matrix.platform.arch }}
+          path: target/release/versoview
