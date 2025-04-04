@@ -1,16 +1,12 @@
 name: Continuous Integration
 
 on:
-  workflow_dispatch:
-  merge_group:
   pull_request:
     branches:
       - main
-  schedule:
-    - cron: "0 0 * * 0"
   push:
     branches:
-      - main
+      - ci
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,9 +16,8 @@ env:
   CN_APP_SLUG: verso/verso-nightly
 
 jobs:
-  pr-fast-check:
-    if: ${{ github.event_name == 'pull_request' }}
-    name: Pull Request Fast Check
+  build:
+    name: Build versoview
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout the repository
@@ -73,76 +68,17 @@ jobs:
       - name: Install Rust
         uses: dsherret/rust-toolchain-file@v1
 
-      - name: Install flatpak dependencies
-        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
-          sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          sudo flatpak install -y --noninteractive flathub org.freedesktop.Platform//24.08
-          sudo flatpak install -y --noninteractive flathub org.freedesktop.Sdk//24.08
-          sudo flatpak install -y --noninteractive flathub org.freedesktop.Sdk.Extension.rust-stable//24.08
-          sudo flatpak install -y --noninteractive flathub org.freedesktop.Sdk.Extension.llvm18//24.08
-
-      - name: Set env
-        run: echo "LIBCLANG_PATH=/usr/lib/llvm-14/lib" >> $GITHUB_ENV
-
       - name: Run sccache-cache
         uses: Mozilla-Actions/sccache-action@v0.0.4
 
-      - name: Install dependencies for merge group test
-        if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
-        run: |
-          sudo apt-get update
-          sudo apt install build-essential python3-pip ccache clang cmake curl \
-            g++ git gperf libdbus-1-dev libfreetype6-dev libgl1-mesa-dri \
-            libgles2-mesa-dev libglib2.0-dev libgstreamer-plugins-base1.0-dev \
-            gstreamer1.0-plugins-good libgstreamer-plugins-good1.0-dev \
-            gstreamer1.0-plugins-bad libgstreamer-plugins-bad1.0-dev \
-            gstreamer1.0-plugins-ugly gstreamer1.0-plugins-base \
-            libgstreamer-plugins-base1.0-dev gstreamer1.0-libav \
-            libgstrtspserver-1.0-dev gstreamer1.0-tools libges-1.0-dev \
-            libharfbuzz-dev liblzma-dev libunwind-dev libunwind-dev libvulkan1 \
-            libx11-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
-            libxmu-dev libxmu6 libegl1-mesa-dev llvm-dev m4 xorg-dev sway \
-            python3-mako
-
-      - name: Check for merge group test
-        if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
-        run: |
-          cargo check
-
-      # - name: Test
-      #   # Run sway(wayland compositor) in the background, winit will use it
-      #   run: |
-      #     sway > /dev/null 2>&1 &
-      #     cargo test --release
-
-      - name: Fetch Verso version
-        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-        run: |
-          echo "VERSO_VERSION=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "versoview") | .version')" >> $GITHUB_ENV
-
-      - name: Generate flatpak cargo sources
-        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-        run: |
-          pip3 install aiohttp toml
-          python3 ./flatpak-cargo-generator.py ./Cargo.lock -o cargo-sources.json
-
-      - name: Build and bundle flatpak
-        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
-        with:
-          bundle: verso_${{ env.VERSO_VERSION }}_x64.flatpak
-          manifest-path: org.versotile.verso.yml
-          cache-key: flatpak-builder-${{ github.sha }}
-
+      - name: Build Versoview
+        run: cargo build --release
+        
       - name: Upload artifact
-        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
         uses: actions/upload-artifact@v4
         with:
-          name: verso_${{ env.VERSO_VERSION }}_x64_flatpak
-          path: verso_${{ env.VERSO_VERSION }}_x64.flatpak
+          name: versoview
+          path: target/release/versoview
 
   build-windows:
     if: ${{ github.event_name != 'pull_request' }}
